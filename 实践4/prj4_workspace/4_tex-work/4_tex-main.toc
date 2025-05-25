@@ -1,0 +1,20 @@
+\contentsline {section}{目 录}{ii}{section*.4}%
+\contentsline {section}{\numberline {1}引言}{1}{section.1}%
+\contentsline {subsection}{\numberline {1.1}冷热电联供系统及其优化概述}{1}{subsection.1.1}%
+\contentsline {subsection}{\numberline {1.2}本实践的目的与意义}{1}{subsection.1.2}%
+\contentsline {section}{\numberline {2}优化模型与算法原理}{2}{section.2}%
+\contentsline {subsection}{\numberline {2.1}目标函数}{2}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}梯度下降法原理}{2}{subsection.2.2}%
+\contentsline {subsection}{\numberline {2.3}梯度计算}{2}{subsection.2.3}%
+\contentsline {subsection}{\numberline {2.4}步长 \(a_k\) 的确定：线搜索策略}{3}{subsection.2.4}%
+\contentsline {subsection}{\numberline {2.5}终止条件}{4}{subsection.2.5}%
+\contentsline {section}{\numberline {3}算法实现与数值实验}{4}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Python 实现概述}{4}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}实验参数设置}{4}{subsection.3.2}%
+\contentsline {subsection}{\numberline {3.3}实验结果与分析}{4}{subsection.3.3}%
+\contentsline {subsubsection}{\numberline {3.3.1}函数1：\(f_1(x_1, x_2) = 10(x_1-1)^2 + (x_2+1)^4\)}{5}{subsubsection.3.3.1}%
+\contentsline {subsubsection}{\numberline {3.3.2}函数2：\(f_2(x_1, x_2) = 100(x_1^2-x_2)^2 + (x_1-1)^2\) (Rosenbrock)}{5}{subsubsection.3.3.2}%
+\contentsline {subsubsection}{\numberline {3.3.3}函数3：\(f_3(x_1, x_2) = 100(x_1^2-3x_2)^2 + (x_1-1)^2\)}{6}{subsubsection.3.3.3}%
+\contentsline {subsection}{\numberline {3.4}对结果的思考与讨论}{6}{subsection.3.4}%
+\contentsline {section}{\numberline {4}结论与展望}{6}{section.4}%
+\contentsline {section}{\numberline {A}附录：Python代码}{7}{appendix.A}%

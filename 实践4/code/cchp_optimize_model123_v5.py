@@ -1,0 +1,821 @@
+"""
+冷热电联供系统优化平台 - 科学增强版 (v5.0)
+2023428020130
+唐玮嘉
+2025 0506
+核心改进：
+1. 精确投影梯度计算与边界安全机制
+2. 自适应学习率与线搜索技术
+3. 多阶段动量调整算法
+4. 强化约束处理与边界弹性技术
+5. 稳定收敛保障与诊断系统
+"""
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.optimize import minimize, line_search
+import time
+import os
+import copy
+
+# 可视化配置
+plt.rcParams['font.sans-serif'] = ['Microsoft YaHei']
+plt.rcParams['axes.unicode_minus'] = False
+
+class ScientificCCHPOptimizer:
+    """
+    科学增强型冷热电联供系统优化器(v5.0)
+    
+    核心特性:
+    - 精确投影梯度法边界处理
+    - 自适应步长与回溯线搜索
+    - 动态动量与二次插值技术
+    - 边界弹性缓冲机制
+    - 多维收敛稳定性诊断
+    """
+    
+    # 参数可行域 [发电效率, 余热回收] ∈ [0,1]^2
+    PARAM_BOUNDS = np.array([[0.0, 1.0], [0.0, 1.0]])
+    
+    def __init__(self, mode='mode2', config=None):
+        """
+        初始化科学增强优化器
+        :param mode: 运行模式 (mode1/mode2/mode3)
+        :param config: 配置字典
+        """
+        self.mode = mode
+        self.config = {
+            'max_iters': 1000,         # 最大迭代次数
+            'epsilon': 1e-5,           # 收敛阈值
+            'base_lr': 0.1,            # 基础学习率
+            'momentum': 0.9,           # 动量系数
+            'buffer_width': 0.05,      # 边界缓冲层宽度(参数范围的5%)
+            'gradient_boost': 2.0,     # 边界附近梯度增强系数
+            'line_search': True,       # 启用线搜索
+            'adaptive_momentum': True, # 动态动量调整
+            'momentum_decay': 0.95,    # 动量衰减系数
+            'wall_rebound': 0.5,       # 边界反弹系数
+            **(config or {})
+        }
+        
+        # 优化状态变量
+        self.params = np.array([0.0, 0.0])  # 当前参数 [x1, x2]
+        self.velocity = np.zeros(2)         # 动量项
+        self.best_params = None             # 历史最优参数
+        self.best_cost = float('inf')       # 历史最优成本
+        self.last_decay_iter = 0            # 上次动量衰减迭代
+        self.stagnation_counter = 0         # 收敛停滞计数
+        
+        self.history = {                    # 优化过程记录
+            'params': [],                   # 参数轨迹
+            'costs': [],                    # 成本值
+            'gradients': [],                # 梯度记录
+            'violations': [],               # 边界违规
+            'deltas': [],                   # 参数变化量
+            'learning_rates': [],           # 学习率记录
+            'momentum_factors': []          # 动量因子记录
+        }
+
+        # 根据模式初始化目标函数
+        self._init_objective()
+        
+        # 初始化问题维度
+        self.n_dim = len(self.params)
+        
+        # 初始化智能收敛检测器
+        self.converge_history = np.zeros((5, 10))  # 5种收敛指标的最近10次状态
+
+    def _init_objective(self):
+        """初始化目标函数与解析梯度"""
+        # 目标函数定义
+        if self.mode == 'mode1':
+            self.objective = lambda x: 10*(x[0]-1)**2 + (x[1]+1)**4
+            self.gradient = lambda x: np.array([20*(x[0]-1), 4*(x[1]+1)**3])
+        elif self.mode == 'mode2':
+            self.objective = lambda x: 100*(x[0]**2 - x[1])**2 + (x[0]-1)**2
+            self.gradient = lambda x: np.array([
+                400*x[0]*(x[0]**2 - x[1]) + 2*(x[0]-1),
+                -200*(x[0]**2 - x[1])
+            ])
+        elif self.mode == 'mode3':
+            self.objective = lambda x: 100*(x[0]**2 - 3*x[1])**2 + (x[0]-1)**2
+            self.gradient = lambda x: np.array([
+                400*x[0]*(x[0]**2 - 3*x[1]) + 2*(x[0]-1),
+                -600*(x[0]**2 - 3*x[1])
+            ])
+        else:
+            raise ValueError("未知的运行模式")
+
+    def _project_params(self, params):
+        """将参数精确投影到可行域内"""
+        return np.clip(params, self.PARAM_BOUNDS[:,0], self.PARAM_BOUNDS[:,1])
+
+    def _project_gradient(self, params, raw_grad):
+        """
+        精确投影梯度 - 确保搜索方向的可行性
+        :param params: 当前参数
+        :param raw_grad: 原始梯度
+        :return: 投影后的可行梯度
+        """
+        projected_grad = raw_grad.copy()
+        
+        # 对每个维度执行边界检查
+        for i in range(self.n_dim):
+            lb, ub = self.PARAM_BOUNDS[i]
+            
+            # 下边界检测 (参数接近下边界)
+            if params[i] <= lb + 1e-6:
+                # 只有当梯度指向可行域内部时才保留
+                projected_grad[i] = max(0, projected_grad[i])
+            
+            # 上边界检测 (参数接近上边界)
+            if params[i] >= ub - 1e-6:
+                # 只有当梯度指向可行域内部时才保留
+                projected_grad[i] = min(0, projected_grad[i])
+                
+        # 确保投影后的梯度不全为零（避免完全卡住）
+        if np.all(np.abs(projected_grad) < 1e-10) and np.any(np.abs(raw_grad) > 1e-6):
+            # 退化为最陡下降方向的小扰动
+            epsilon = 1e-6
+            perturbation = -epsilon * raw_grad / (np.linalg.norm(raw_grad) + 1e-12)
+            
+            # 检查扰动是否会导致越界
+            proposed_params = params + perturbation
+            if np.all((proposed_params >= self.PARAM_BOUNDS[:,0]) & 
+                      (proposed_params <= self.PARAM_BOUNDS[:,1])):
+                projected_grad = perturbation
+                
+        return projected_grad
+
+    def _dynamic_gradient_adjust(self, params, grad):
+        """
+        动态梯度调整(边界缓冲层增强)
+        :param params: 当前参数
+        :param grad: 原始梯度
+        :return: 调整后的梯度
+        """
+        adjusted_grad = grad.copy()
+        buffer = self.config['buffer_width']
+        
+        # 对每个参数进行边界检测
+        for i in range(self.n_dim):
+            lb, ub = self.PARAM_BOUNDS[i]
+            
+            # 下边界缓冲增强 - 仅当梯度方向正确时增强
+            if (params[i] - lb) < buffer and adjusted_grad[i] > 0:
+                scale = 1 + (buffer - (params[i] - lb))/buffer * self.config['gradient_boost']
+                adjusted_grad[i] *= scale
+                
+            # 上边界缓冲增强 - 仅当梯度方向正确时增强
+            if (ub - params[i]) < buffer and adjusted_grad[i] < 0:
+                scale = 1 + (buffer - (ub - params[i]))/buffer * self.config['gradient_boost']
+                adjusted_grad[i] *= scale
+                
+        return adjusted_grad
+
+    def _adaptive_learning_rate(self, iter_num, grad_norm, recent_progress):
+        """
+        增强型自适应学习率
+        :param iter_num: 当前迭代次数
+        :param grad_norm: 当前梯度范数
+        :param recent_progress: 最近的优化进展
+        :return: 调整后的学习率
+        """
+        base_lr = self.config['base_lr']
+        
+        # 基于梯度范数的缩放
+        if grad_norm > 10.0:
+            lr_scale = 0.1  # 大梯度时保守更新
+        elif grad_norm > 1.0:
+            lr_scale = 0.5  # 中等梯度适中更新
+        elif grad_norm < 0.01:
+            lr_scale = 2.0  # 小梯度加速收敛
+        else:
+            lr_scale = 1.0
+            
+        # 基于收敛进展的调整
+        if recent_progress < 1e-6 and iter_num > 20:
+            # 停滞状态下额外加速
+            lr_scale *= min(1.5, 1.0 + self.stagnation_counter / 10.0)
+            
+        # 基于迭代阶段的调整
+        phase_scale = 1.0
+        if iter_num < 20:
+            phase_scale = 0.8  # 初始阶段保守
+        elif iter_num > 100:
+            phase_scale = 1.2  # 后期阶段适当激进
+            
+        return base_lr * lr_scale * phase_scale
+
+    def _dynamic_momentum_adjust(self, iter_num, grad_norm, recent_progress):
+        """
+        动态动量调整
+        :param iter_num: 当前迭代次数
+        :param grad_norm: 当前梯度范数
+        :param recent_progress: 最近的优化进展
+        :return: 当前迭代的动量因子
+        """
+        base_momentum = self.config['momentum']
+        
+        if not self.config['adaptive_momentum']:
+            return base_momentum
+            
+        # 检测边界震荡（多次在边界附近反弹）
+        boundary_oscillation = False
+        if len(self.history['params']) > 5:
+            recent_params = np.array(self.history['params'][-5:])
+            for i in range(self.n_dim):
+                lb, ub = self.PARAM_BOUNDS[i]
+                # 检查是否有参数在边界附近多次变化方向
+                at_lb = np.abs(recent_params[:, i] - lb) < 1e-4
+                at_ub = np.abs(recent_params[:, i] - ub) < 1e-4
+                if np.sum(at_lb) > 2 or np.sum(at_ub) > 2:
+                    boundary_oscillation = True
+                    break
+        
+        # 长时间停滞检测
+        if recent_progress < 1e-7 and iter_num - self.last_decay_iter > 10:
+            # 触发动量衰减
+            momentum = base_momentum * self.config['momentum_decay']
+            self.last_decay_iter = iter_num
+        # 边界震荡检测
+        elif boundary_oscillation:
+            # 显著降低动量以减少边界震荡
+            momentum = base_momentum * 0.5
+        # 梯度急剧变化检测
+        elif len(self.history['gradients']) > 1:
+            prev_grad = self.history['gradients'][-1]
+            grad_angle = np.sum(prev_grad * self.gradient(self.params)) / (np.linalg.norm(prev_grad) * grad_norm + 1e-12)
+            if grad_angle < -0.3:  # 梯度方向显著变化
+                momentum = base_momentum * 0.7  # 减小动量
+            elif grad_angle > 0.9:  # 梯度方向稳定
+                momentum = min(0.98, base_momentum * 1.05)  # 略微增加动量
+            else:
+                momentum = base_momentum
+        else:
+            momentum = base_momentum
+            
+        # 确保动量在合理范围内
+        return np.clip(momentum, 0.5, 0.98)
+
+    def _wall_rebound(self, params, velocity):
+        """
+        边界弹性反弹机制
+        :param params: 当前参数（已投影到可行域）
+        :param velocity: 当前动量速度
+        :return: 调整后的速度
+        """
+        rebounded_velocity = velocity.copy()
+        
+        # 对每个维度检查边界碰撞
+        for i in range(self.n_dim):
+            lb, ub = self.PARAM_BOUNDS[i]
+            
+            # 下边界碰撞检测
+            if abs(params[i] - lb) < 1e-6 and velocity[i] < 0:
+                # 速度反向并衰减
+                rebounded_velocity[i] = -velocity[i] * self.config['wall_rebound']
+                
+            # 上边界碰撞检测
+            if abs(params[i] - ub) < 1e-6 and velocity[i] > 0:
+                # 速度反向并衰减
+                rebounded_velocity[i] = -velocity[i] * self.config['wall_rebound']
+                
+        return rebounded_velocity
+
+    def _perform_line_search(self, params, direction, grad):
+        """
+        执行回溯线搜索确定最优步长
+        :param params: 当前参数点
+        :param direction: 搜索方向
+        :param grad: 当前梯度
+        :return: 最优步长
+        """
+        if not self.config['line_search']:
+            return 1.0
+            
+        # 定义线搜索的目标函数
+        def obj_func(alpha):
+            new_params = self._project_params(params + alpha * direction)
+            return self.objective(new_params)
+            
+        # 初始步长
+        alpha0 = 1.0
+        
+        # 回溯线搜索
+        c1 = 1e-4  # Armijo条件系数
+        tau = 0.5   # 回溯因子
+        alpha = alpha0
+        f0 = self.objective(params)
+        df0 = np.sum(grad * direction)  # 方向导数
+        
+        # 最多10次回溯
+        for _ in range(10):
+            new_params = self._project_params(params + alpha * direction)
+            f_new = self.objective(new_params)
+            
+            # 检查Armijo条件
+            if f_new <= f0 + c1 * alpha * df0:
+                return alpha
+                
+            # 回溯步长
+            alpha *= tau
+            
+        # 如果回溯失败，返回保守步长
+        return 0.01
+
+    def _check_convergence(self):
+        """增强型多维收敛检测"""
+        if len(self.history['deltas']) < 5:
+            return False
+
+        # 收集最近的收敛指标
+        recent_deltas = self.history['deltas'][-5:]
+        recent_gradients = [np.linalg.norm(g) for g in self.history['gradients'][-5:]]
+        recent_costs = self.history['costs'][-5:]
+        
+        # 计算5种收敛指标
+        criteria = {
+            'param_change': np.mean(recent_deltas) < self.config['epsilon'],
+            'gradient_norm': np.mean(recent_gradients) < self.config['epsilon'],
+            'cost_change': np.mean([abs(recent_costs[i+1] - recent_costs[i]) for i in range(4)]) < self.config['epsilon']**2,
+            'cost_plateau': np.std(recent_costs) < self.config['epsilon']**2,
+            'acceleration': np.std(recent_deltas) < self.config['epsilon']**2
+        }
+        
+        # 更新收敛历史
+        self.converge_history = np.roll(self.converge_history, -1, axis=1)
+        self.converge_history[:, -1] = [float(v) for v in criteria.values()]
+        
+        # 检查持续稳定收敛（5种指标在最近3次迭代都满足）
+        stable_convergence = np.all(self.converge_history[:, -3:], axis=1)
+        
+        return np.sum(stable_convergence) >= 3  # 至少3种指标达到稳定收敛
+
+    def _update_best_solution(self):
+        """更新历史最优解"""
+        current_cost = self.objective(self.params)
+        if current_cost < self.best_cost:
+            self.best_cost = current_cost
+            self.best_params = self.params.copy()
+            return True
+        return False
+
+    def optimize(self, verbose=True):
+        """执行增强科学优化流程"""
+        self.params = self._project_params(self.params)
+        current_cost = self.objective(self.params)
+        self.best_cost = current_cost
+        self.best_params = self.params.copy()
+        
+        # 初始化历史记录
+        self.history['params'].append(self.params.copy())
+        self.history['costs'].append(current_cost)
+        raw_grad = self.gradient(self.params)
+        self.history['gradients'].append(raw_grad)
+        self.history['violations'].append(0.0)
+        self.history['deltas'].append(0.0)
+        self.history['learning_rates'].append(self.config['base_lr'])
+        self.history['momentum_factors'].append(self.config['momentum'])
+        
+        try:
+            for iter_num in range(self.config['max_iters']):
+                # 1. 计算原始梯度
+                raw_grad = self.gradient(self.params)
+                grad_norm = np.linalg.norm(raw_grad)
+                
+                # 计算最近的优化进展
+                recent_progress = 0.0
+                if len(self.history['costs']) > 5:
+                    recent_costs = self.history['costs'][-5:]
+                    recent_progress = abs(recent_costs[0] - recent_costs[-1])
+                
+                # 2. 动态梯度调整
+                adjusted_grad = self._dynamic_gradient_adjust(self.params, raw_grad)
+                
+                # 3. 梯度投影（确保搜索方向的可行性）
+                projected_grad = self._project_gradient(self.params, adjusted_grad)
+                proj_grad_norm = np.linalg.norm(projected_grad)
+                
+                # 4. 自适应动量调整
+                momentum_factor = self._dynamic_momentum_adjust(iter_num, grad_norm, recent_progress)
+                
+                # 5. 更新速度向量（动量法）
+                search_direction = -projected_grad + momentum_factor * self.velocity
+                
+                # 6. 自适应学习率
+                base_lr = self._adaptive_learning_rate(iter_num, proj_grad_norm, recent_progress)
+                
+                # 7. 线搜索确定最优步长
+                step_size = self._perform_line_search(self.params, search_direction, projected_grad) * base_lr
+                
+                # 8. 参数更新
+                new_params = self.params + step_size * search_direction
+                
+                # 9. 参数投影
+                new_params = self._project_params(new_params)
+                
+                # 10. 计算实际更新量
+                param_delta = np.linalg.norm(new_params - self.params)
+                
+                # 11. 边界反弹机制（调整速度/动量）
+                self.velocity = search_direction  # 保存当前搜索方向作为速度
+                self.velocity = self._wall_rebound(new_params, self.velocity)
+                
+                # 记录优化状态
+                self.history['params'].append(new_params.copy())
+                new_cost = self.objective(new_params)
+                self.history['costs'].append(new_cost)
+                self.history['gradients'].append(projected_grad.copy())
+                self.history['violations'].append(np.linalg.norm(new_params - self._project_params(new_params)))
+                self.history['deltas'].append(param_delta)
+                self.history['learning_rates'].append(base_lr)
+                self.history['momentum_factors'].append(momentum_factor)
+                
+                # 更新最优解
+                is_improved = self._update_best_solution()
+                
+                # 更新停滞计数器
+                if param_delta < self.config['epsilon'] / 10:
+                    self.stagnation_counter += 1
+                else:
+                    self.stagnation_counter = 0
+                
+                # 检查收敛
+                if self._check_convergence() and iter_num > 10:
+                    if verbose:
+                        print(f"\n✅ 严格收敛于第 {iter_num+1} 次迭代")
+                        self._print_convergence_report()
+                    return True
+                
+                # 更新当前参数
+                self.params = new_params
+                
+                # 每10次迭代打印进度
+                if verbose and (iter_num+1) % 10 == 0:
+                    improve_mark = "*" if is_improved else " "
+                    print(f"Iter {iter_num+1:4d} | Cost: {new_cost:.3e}{improve_mark} | "
+                          f"Grad: {proj_grad_norm:.1e} | Δ: {param_delta:.1e} | "
+                          f"LR: {base_lr:.2e} | M: {momentum_factor:.2f}")
+
+            if verbose:
+                print("\n⚠️ 达到最大迭代次数")
+            
+            # 恢复历史最优解
+            self.params = self.best_params
+            return False
+        except Exception as e:
+            if verbose:
+                print(f"\n❌ 优化异常: {str(e)}")
+            return False
+
+    def _print_convergence_report(self):
+        """打印增强型收敛诊断报告"""
+        print("\n收敛诊断报告:")
+        print("="*40)
+        
+        # 计算最终收敛指标
+        final_cost = self.history['costs'][-1]
+        best_cost = min(self.history['costs'])
+        final_grad_norm = np.linalg.norm(self.history['gradients'][-1])
+        final_delta = self.history['deltas'][-1]
+        
+        # 四个主要收敛指标
+        criteria = {
+            '参数变化量': final_delta,
+            '梯度范数': final_grad_norm,
+            '成本值': final_cost,
+            '最优成本差': abs(final_cost - best_cost),
+            '边界违规量': self.history['violations'][-1]
+        }
+        
+        for name, value in criteria.items():
+            threshold = self.config['epsilon'] if name != '成本值' else 0
+            status = "✔️" if value < self.config['epsilon'] or name == '成本值' else "❌"
+            print(f"{name:8s}: {value:.2e} {status}")
+            
+        # 收敛稳定性分析
+        print("\n收敛稳定性分析:")
+        print("-"*40)
+        
+        # 检查最近10次迭代的变化趋势
+        if len(self.history['costs']) >= 10:
+            recent_costs = self.history['costs'][-10:]
+            recent_grads = [np.linalg.norm(g) for g in self.history['gradients'][-10:]]
+            recent_deltas = self.history['deltas'][-10:]
+            
+            cost_trend = np.polyfit(np.arange(10), recent_costs, 1)[0]
+            grad_trend = np.polyfit(np.arange(10), recent_grads, 1)[0]
+            delta_trend = np.polyfit(np.arange(10), recent_deltas, 1)[0]
+            
+            trends = {
+                "成本趋势": cost_trend,
+                "梯度趋势": grad_trend,
+                "变化趋势": delta_trend
+            }
+            
+            for name, value in trends.items():
+                trend_str = "持平" if abs(value) < 1e-6 else ("下降" if value < 0 else "上升")
+                print(f"{name}: {trend_str} ({value:.2e})")
+
+    def render_contour(self, resolution=100, margin=0.1, show_trajectory=True, highlight_best=True):
+        """
+        绘制增强型目标函数等高线与优化轨迹
+        :param resolution: 网格分辨率
+        :param margin: 可视化边界扩展比例
+        :param show_trajectory: 是否显示优化轨迹
+        :param highlight_best: 是否高亮最优点
+        """
+        # 确定可视化范围（带边距）
+        x_min, x_max = -margin, 1.0 + margin
+        y_min, y_max = -margin, 1.0 + margin
+        
+        # 创建网格
+        x = np.linspace(x_min, x_max, resolution)
+        y = np.linspace(y_min, y_max, resolution)
+        X, Y = np.meshgrid(x, y)
+        
+        # 计算每个网格点的函数值
+        Z = np.zeros_like(X)
+        for i in range(resolution):
+            for j in range(resolution):
+                Z[i, j] = self.objective(np.array([X[i, j], Y[i, j]]))
+        
+        # 创建图表
+        plt.figure(figsize=(10, 8))
+        
+        # 绘制等高线
+        levels = np.logspace(0, 5, 20)  # 对数尺度等高线
+        contour = plt.contourf(X, Y, Z, levels=levels, cmap='viridis', alpha=0.7)
+        plt.colorbar(contour, label='目标函数值 (对数尺度)')
+        
+        # 绘制可行域边界
+        plt.plot([0, 1, 1, 0, 0], [0, 0, 1, 1, 0], 'r--', linewidth=2, label='可行域边界')
+        
+        # 绘制优化轨迹
+        if show_trajectory and len(self.history['params']) > 1:
+            trajectory = np.array(self.history['params'])
+            plt.plot(trajectory[:, 0], trajectory[:, 1], 'b.-', linewidth=1, markersize=3, label='优化轨迹')
+            plt.scatter(trajectory[0, 0], trajectory[0, 1], c='red', s=100, marker='o', label='初始点')
+            plt.scatter(trajectory[-1, 0], trajectory[-1, 1], c='lime', s=100, marker='*', label='终点')
+        
+        # 高亮标记最优点
+        if highlight_best and self.best_params is not None:
+            plt.scatter(self.best_params[0], self.best_params[1], c='yellow', s=150, 
+                       marker='*', edgecolors='black', linewidth=1, label='最优解')
+        
+        # 设置图表属性
+        plt.xlim(x_min, x_max)
+        plt.ylim(y_min, y_max)
+        plt.xlabel('发电效率系数', fontsize=12)
+        plt.ylabel('余热回收系数', fontsize=12)
+        plt.title(f'冷热电联供优化 ({self.mode}): 目标函数等高线与优化轨迹', fontsize=14)
+        plt.grid(True, linestyle='--', alpha=0.3)
+        plt.legend(loc='upper right')
+        
+        return plt.gcf()  # 返回当前图形对象
+
+    def visualize(self, save_path=None):
+        """生成增强型多维可视化"""
+        fig = plt.figure(figsize=(16, 12))
+        
+        # 创建2x2网格布局
+        gs = fig.add_gridspec(2, 2)
+        
+        # 1. 等高线与优化轨迹
+        ax1 = fig.add_subplot(gs[0, 0])
+        
+        # 定义可视化范围 (略微扩展可行域)
+        margin = 0.05
+        x_min, x_max = -margin, 1.0 + margin
+        y_min, y_max = -margin, 1.0 + margin
+        
+        # 创建网格
+        resolution = 100
+        x = np.linspace(x_min, x_max, resolution)
+        y = np.linspace(y_min, y_max, resolution)
+        X, Y = np.meshgrid(x, y)
+        
+        # 计算每个网格点的函数值
+        Z = np.zeros_like(X)
+        for i in range(resolution):
+            for j in range(resolution):
+                Z[i, j] = self.objective(np.array([X[i, j], Y[i, j]]))
+        
+        # 绘制等高线
+        levels = np.logspace(0, 5, 15)  # 对数尺度等高线
+        contour = ax1.contourf(X, Y, Z, levels=levels, cmap='viridis', alpha=0.7)
+        fig.colorbar(contour, ax=ax1, label='目标函数值 (对数尺度)')
+        
+        # 绘制可行域边界
+        ax1.plot([0, 1, 1, 0, 0], [0, 0, 1, 1, 0], 'r--', linewidth=2, label='可行域边界')
+        
+        # 绘制优化轨迹
+        if len(self.history['params']) > 1:
+            trajectory = np.array(self.history['params'])
+            ax1.plot(trajectory[:, 0], trajectory[:, 1], 'b.-', linewidth=1, markersize=3, label='优化轨迹')
+            ax1.scatter(trajectory[0, 0], trajectory[0, 1], c='red', s=100, marker='o', label='初始点')
+            ax1.scatter(trajectory[-1, 0], trajectory[-1, 1], c='lime', s=100, marker='*', label='终点')
+            
+            # 高亮标记最优点
+            if self.best_params is not None:
+                ax1.scatter(self.best_params[0], self.best_params[1], c='yellow', s=150, 
+                           marker='*', edgecolors='black', linewidth=1, label='最优解')
+        
+        # 设置图表属性
+        ax1.set_xlim(x_min, x_max)
+        ax1.set_ylim(y_min, y_max)
+        ax1.set_xlabel('发电效率系数', fontsize=12)
+        ax1.set_ylabel('余热回收系数', fontsize=12)
+        ax1.set_title('目标函数等高线与优化轨迹', fontsize=12)
+        ax1.grid(True, linestyle='--', alpha=0.3)
+        ax1.legend(loc='upper right', fontsize=10)
+        
+        # 2. 成本收敛曲线
+        ax2 = fig.add_subplot(gs[0, 1])
+        costs = np.array(self.history['costs'])
+        iterations = np.arange(len(costs))
+        
+        # 对数尺度绘制成本
+        ax2.semilogy(iterations, costs, 'r-', linewidth=2, label='成本值')
+        
+        # 标记最优成本
+        best_idx = np.argmin(costs)
+        ax2.scatter(best_idx, costs[best_idx], c='yellow', s=100, marker='*', 
+                   edgecolors='black', linewidth=1, label=f'最优成本: {costs[best_idx]:.2e}')
+        
+        # 设置图表属性
+        ax2.set_xlabel('迭代次数', fontsize=12)
+        ax2.set_ylabel('综合成本 (对数尺度)', fontsize=12)
+        ax2.set_title('成本收敛过程', fontsize=12)
+        ax2.grid(True, alpha=0.3)
+        ax2.legend(loc='upper right', fontsize=10)
+        
+        # 3. 参数变化过程
+        ax3 = fig.add_subplot(gs[1, 0])
+        params = np.array(self.history['params'])
+        
+        ax3.plot(iterations, params[:, 0], 'g-', linewidth=2, label='发电效率')
+        ax3.plot(iterations, params[:, 1], 'm-', linewidth=2, label='余热回收')
+        
+        # 设置图表属性
+        ax3.set_xlabel('迭代次数', fontsize=12)
+        ax3.set_ylabel('参数值', fontsize=12)
+        ax3.set_title('参数迭代过程', fontsize=12)
+        ax3.set_ylim(-0.05, 1.05)  # 略微扩展可行域
+        ax3.grid(True, alpha=0.3)
+        ax3.legend(loc='best', fontsize=10)
+        
+        # 4. 优化诊断指标
+        ax4 = fig.add_subplot(gs[1, 1])
+        
+        # 绘制梯度范数
+        grads = np.array([np.linalg.norm(g) for g in self.history['gradients']])
+        ax4.semilogy(iterations, grads, 'k-', linewidth=2, label='梯度范数')
+        
+        # 绘制参数变化量
+        deltas = np.array(self.history['deltas'])
+        ax4.semilogy(iterations, deltas, 'b--', linewidth=2, label='参数变化量')
+        
+        # 绘制学习率
+        if len(self.history['learning_rates']) == len(iterations):
+            lrs = np.array(self.history['learning_rates'])
+            ax4_twin = ax4.twinx()
+            ax4_twin.plot(iterations, lrs, 'r-.', linewidth=1.5, label='学习率')
+            ax4_twin.set_ylabel('学习率', fontsize=12, color='r')
+            ax4_twin.tick_params(axis='y', colors='r')
+        
+        # 设置图表属性
+        ax4.set_xlabel('迭代次数', fontsize=12)
+        ax4.set_ylabel('优化指标 (对数尺度)', fontsize=12)
+        ax4.set_title('优化诊断指标', fontsize=12)
+        ax4.grid(True, alpha=0.3)
+        ax4.legend(loc='upper left', fontsize=10)
+        if 'ax4_twin' in locals():
+            ax4_twin.legend(loc='upper right', fontsize=10)
+        
+        # 调整布局
+        plt.tight_layout()
+        
+        # 保存图表
+        if save_path:
+            plt.savefig(save_path, dpi=150, bbox_inches='tight')
+        
+        return fig
+        
+# 交互界面函数
+def get_valid_input(prompt, value_type, default=None, validation=None):
+    """获取并验证用户输入"""
+    while True:
+        try:
+            user_input = input(prompt).strip()
+            if not user_input and default is not None:
+                return default
+            value = value_type(user_input)
+            if validation and not validation(value):
+                raise ValueError
+            return value
+        except:
+            print(f"输入无效，请重新输入（默认值：{default}）")
+
+def run_optimization_with_ui():
+    """运行带交互界面的优化程序"""
+    print("\n" + "="*60)
+    print("     冷热电联供系统科学优化平台 v5.0 (科学增强版)")
+    print("="*60)
+    
+    # 模式选择
+    mode_choice = get_valid_input(
+        "选择运行模式 (1:高电负荷 2:热电平衡 3:余热优先): ",
+        str, '2', lambda x: x in ['1','2','3']
+    )
+    mode_map = {'1':'mode1', '2':'mode2', '3':'mode3'}
+    selected_mode = mode_map[mode_choice]
+    
+    # 初始参数配置
+    if get_valid_input("是否自定义初始参数? (y/n): ", str, 'n').lower() == 'y':
+        x1 = get_valid_input("发电效率初始值 (0-1): ", float, 0.0, lambda x: 0<=x<=1)
+        x2 = get_valid_input("余热回收初始值 (0-1): ", float, 0.0, lambda x: 0<=x<=1)
+        initial_params = [x1, x2]
+    else:
+        # 为不同模式提供更好的默认初始值
+        if selected_mode == 'mode1':
+            initial_params = [0.5, 0.5]
+        elif selected_mode == 'mode2':
+            initial_params = [0.3, 0.3]
+        else:
+            initial_params = [0.2, 0.6]
+    
+    # 高级优化配置
+    print("\n高级优化参数配置:")
+    print("-"*40)
+    
+    config = {
+        'max_iters': get_valid_input(
+            "最大迭代次数 (默认1000): ", int, 1000, lambda x: x>0),
+        'epsilon': get_valid_input(
+            "收敛阈值 (默认1e-5): ", float, 1e-5, lambda x: x>0),
+        'base_lr': get_valid_input(
+            "基础学习率 (默认0.1): ", float, 0.1, lambda x: x>0),
+        'momentum': get_valid_input(
+            "动量系数 (默认0.9): ", float, 0.9, lambda x: 0<=x<1)
+    }
+    
+    # 高级配置（可选）
+    if get_valid_input("是否配置高级参数? (y/n): ", str, 'n').lower() == 'y':
+        config.update({
+            'line_search': get_valid_input(
+                "启用线搜索 (y/n): ", lambda x: x.lower() == 'y', True),
+            'adaptive_momentum': get_valid_input(
+                "启用自适应动量 (y/n): ", lambda x: x.lower() == 'y', True),
+            'wall_rebound': get_valid_input(
+                "边界反弹系数 (0-1): ", float, 0.5, lambda x: 0<=x<=1),
+            'gradient_boost': get_valid_input(
+                "梯度增强系数 (1-5): ", float, 2.0, lambda x: 1<=x<=5)
+        })
+    
+    print("\n" + "-"*60)
+    print("开始优化计算...")
+    
+    # 初始化优化器
+    optimizer = ScientificCCHPOptimizer(
+        mode=selected_mode,
+        config=config
+    )
+    optimizer.params = np.array(initial_params)
+    
+    # 执行优化
+    start_time = time.time()
+    success = optimizer.optimize(verbose=True)
+    elapsed = time.time() - start_time
+    
+    # 显示结果
+    print("\n优化结果报告")
+    print("="*60)
+    print(f"运行模式: \t{optimizer.mode}")
+    print(f"初始参数: \t{initial_params}")
+    print(f"迭代次数: \t{len(optimizer.history['params'])-1}")
+    print(f"计算耗时: \t{elapsed:.3f}秒")
+    print(f"最终发电效率: \t{optimizer.params[0]:.6f}")
+    print(f"最终余热回收: \t{optimizer.params[1]:.6f}")
+    print(f"最终成本值: \t{optimizer.objective(optimizer.params):.6e}")
+    
+    if optimizer.best_params is not None and not np.array_equal(optimizer.params, optimizer.best_params):
+        print("\n最优解记录:")
+        print(f"最优发电效率: \t{optimizer.best_params[0]:.6f}")
+        print(f"最优余热回收: \t{optimizer.best_params[1]:.6f}")
+        print(f"最优成本值: \t{optimizer.best_cost:.6e}")
+    
+    # 可视化
+    if get_valid_input("是否生成可视化图表? (y/n): ", str, 'y').lower() == 'y':
+        save_dir = "fig5"
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+        save_path = os.path.join(save_dir, f"cchp_optimization_{selected_mode}.png")
+        optimizer.visualize(save_path)
+        print(f"图表已保存至 {os.path.abspath(save_path)}")
+    
+    return optimizer
+
+if __name__ == "__main__":
+    run_optimization_with_ui()

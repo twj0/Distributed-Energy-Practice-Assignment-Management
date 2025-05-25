@@ -1,0 +1,20 @@
+\contentsline {section}{目 录}{4}{section*.2}%
+\contentsline {section}{\numberline {1}引言}{5}{section.1}%
+\contentsline {section}{\numberline {2}评价方法与模型}{5}{section.2}%
+\contentsline {subsection}{\numberline {2.1}评价指标体系}{5}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}数据预处理}{6}{subsection.2.2}%
+\contentsline {subsubsection}{\numberline {2.2.1}定性指标模糊量化}{6}{subsubsection.2.2.1}%
+\contentsline {subsubsection}{\numberline {2.2.2}定量指标无量纲化}{7}{subsubsection.2.2.2}%
+\contentsline {subsection}{\numberline {2.3}层次分析法 (AHP) 确定权重}{7}{subsection.2.3}%
+\contentsline {subsection}{\numberline {2.4}灰色关联分析 (GRA)}{8}{subsection.2.4}%
+\contentsline {section}{\numberline {3}评价结果与分析}{8}{section.3}%
+\contentsline {subsection}{\numberline {3.1}指标预处理结果}{8}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}权重计算结果}{9}{subsection.3.2}%
+\contentsline {subsubsection}{\numberline {3.2.1}准则层 (Level 1) 权重}{9}{subsubsection.3.2.1}%
+\contentsline {subsubsection}{\numberline {3.2.2}指标层局部权重与全局权重}{9}{subsubsection.3.2.2}%
+\contentsline {subsection}{\numberline {3.3}灰色关联分析结果}{10}{subsection.3.3}%
+\contentsline {subsubsection}{\numberline {3.3.1}灰色关联系数矩阵}{10}{subsubsection.3.3.1}%
+\contentsline {subsubsection}{\numberline {3.3.2}综合评价结果与排序}{10}{subsubsection.3.3.2}%
+\contentsline {subsection}{\numberline {3.4}结果讨论}{11}{subsection.3.4}%
+\contentsline {section}{\numberline {4}结论与思考}{12}{section.4}%
+\contentsline {section}{\numberline {5}附录}{13}{section.5}%
