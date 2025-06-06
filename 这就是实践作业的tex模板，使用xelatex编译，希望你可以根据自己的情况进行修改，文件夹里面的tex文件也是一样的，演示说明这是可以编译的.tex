@@ -1,0 +1,212 @@
+\documentclass[12pt]{ctexart}
+\usepackage{geometry}
+\geometry{a4paper, margin=1in}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{multirow}
+\usepackage{setspace}
+\usepackage{caption}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{verbatim}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{tabularx}
+\usepackage{longtable}
+% 格式设置
+
+\setstretch{1.5}          % 1.5倍行距
+\setlength{\parindent}{2em} % 首行缩进2字符
+
+% 封面模板
+\newcommand{\cover}[6]{
+  \begin{center}
+    {\LARGE \bfseries 《分布式能源系统概论》}\\[1em]
+    {\Large 实践作业}\\[2em]
+    
+    \begin{tabular}{ll}
+      作业题目： & \underline{\makebox[8cm][s]{}} \\
+      专~~~~业： & 能源与动力工程 \\
+      班~~~~级： & 2023级能源与动力工程一班(化能杨班) \\
+      学生姓名： & 你的名字 \\
+      学~~~~号： & 2023428020130 \\
+      指导教师： & 老师的名字 副教授 \\
+      年~月~日： & \underline{\makebox[4cm][s]{}} \\
+    \end{tabular}
+  \end{center}
+  \vspace{2em}
+}
+
+\begin{document}
+
+% 封面
+\cover{}{}{}{}{}{}
+
+% 课程论文任务书
+\section*{课程论文任务书}
+专业：能源与动力工程 \quad 班级：2023级能源与动力工程一班(化能杨班)
+
+
+\begin{tabularx}{\textwidth}{|l|X|X|X|} % 使用全页面宽度
+  \hline
+  学生姓名 & 你的名字 & 学号 & 2023428020130 \\
+  \hline
+  论文题目 & \multicolumn{3}{X|}{\underline{\makebox[12cm][s]{}}} \\
+  \hline
+  \multirow{3}{*}{设计目的、主要内容及要求} 
+    & 论文目的： & \multicolumn{2}{X|}{
+    \begin{minipage}[t]{\hsize}
+      课程论文是“分布式能源系统概论”课程...（保持原文）
+    \end{minipage}} \\
+    \cline{2-2}
+    & 主要内容： & \multicolumn{2}{X|}{} \\
+    \cline{2-2}
+    & 要求： & \multicolumn{2}{X|}{\begin{minipage}[t]{\hsize}
+      1. 统一使用A4纸打印；\\
+      2. 论文撰写格式请参考附录。
+    \end{minipage}} \\
+  \hline
+
+  进度安排 & \multicolumn{3}{|l|}{\begin{tabular}{l}
+    第1天： \\
+    第2-3天： \\
+    第4-5天： \\
+    第6-10天： \\
+    第11天： \\
+    第12-16天： \\
+  \end{tabular}} \\
+  \hline
+  主要参考资料 & \multicolumn{3}{|l|}{\begin{minipage}[t]{0.9\textwidth}
+    \begin{enumerate}
+      \item 《分布式冷热电联产系统装置及应用》，金红光等主编，中国电力出版社，2010年
+      \item 《小型吸收式制冷机原理与应用》，王林主编，中国建筑工业出版社，2011年
+      \item 《燃气冷热电分布式能源技术应用手册》，林世平等主编，中国电力出版社，2014年
+    \end{enumerate}
+  \end{minipage}} \\
+  \hline
+  指导教师签字 & \multicolumn{3}{|l|}{\underline{\makebox[12cm][s]{}}} \\
+  \hline
+\end{tabularx}
+
+% 摘要与关键词
+\section*{摘 要}
+\noindent （此处填写摘要内容）
+
+\section*{关键词}
+\noindent 关键词1；关键词2；关键词3（按实际内容填写）
+
+% 目录
+\tableofcontents
+\addcontentsline{toc}{section}{目 录} % 添加目录到目录页
+
+% 正文
+\section{课程设计的定义和目的}
+\subsection{1.1 课程设计的定义}
+课程设计是“针对某一门”课程的要求，对学生进行综合性训练的过程，其中包括参考资料的查找、相关工具的应用以及课程设计文本的撰写和设计的实现或仿真等。
+
+\subsection{1.2 课程设计的目的}
+课程设计的目的在于培养学生运用课程中所学到的理论知识，解决实际问题的能力，培养学生查阅资料文献的能力，培养学生使用相关软体的能力，培养学生动手的能力，培养学生规范撰写的能力等。
+
+\section{课程设计准备工作}
+孔子在《论语·卫灵公》中有云“工欲善其事，必先利其器。”良好的准备工作可以说是一个成功的开端。
+
+\subsection{2.1 相关文献、书目的准备}
+查找适当的文献和书目是做好课程设计的基础。一般来讲，课程设计的设计对象和设计方法都会出自与该设计对应的课程，但是每一门课程对应的参考书往往有两本以上，而且有的参考书在内容上具有较大的差别，因此针对自己的选题，选择适当的参考书是很必要的。
+
+\subsubsection{参考书的查找}
+参考书的查找方法很多，但是不建议去网上海搜，因为每一个课程的相关参考书都至少有十几本从里面查找内容是不现实的。应该注意的是我们在每门课程开始，或者说第一堂课，该课程的授课老师都会为我们推荐几本参考书，因此课程设计的内容和方法的选择从老师推荐的书里去寻找必然可以事半功倍。
+
+\subsubsection{参考文献的查找}
+参考文献查找需要在网上进行，一个是从我们学校的IP网址登陆中国知网，输入关键词包括研究对象或者使用的研究方法。中文硕、博士论文及期刊检索：中国知网www.cnki.net；专利检索：图书馆网站-资源导航-专利标准；英文检索：www.isiknowledge.com，可选择论文类型，可先读review文章。
+
+\subsection{2.2 相关工具软件的准备}
+当我们查找好相关的书目以及文献后，我们要对我们的课程设计进行分析，仿真以及撰写，这就需要相应的软件给予支持。工科课程设计的软件大体包括三种：Office类软件、课程相关软体以及数学公式编辑器。
+
+\section{课程设计撰写}
+当我们完成了课程设计的理论分析以及仿真之后就进入了我们课程设计的撰写阶段。这一阶段我们要将我们分析的内容，仿真的图表在Office软件上规范的表述出来。
+
+\subsection{3.1 摘要的格式}
+摘要是被首先看到的，整洁的摘要可以给人留下良好的印象。在这次课程设计中，我们也对摘要的格式进行了一些规定：摘要标题按一级标题排版；中文摘要和关键词采用小四号宋体，段落首行缩进，英文摘要和英文关键词采用小四号“Times New Roman”字体，1.5倍行距，关键词选取3-5个具有代表性的词语，关键词之间用“，”相隔。
+
+\subsection{3.2 标题及正文文字的格式}
+正文中的标题最多分三级，其要求为：所有标题顶格，其中一级标题字体为黑体，字号为小三，样式为标题一；二级标题字体为黑体，字号为四号，样式为标题二；三级标题字体为黑体，字号为小四，样式为标题三。文章的正文选择宋体，字号小四。段落间首行缩进2个字符，行间距为多倍行距中的1.25倍行间距。
+
+\subsection{3.3 目录格式}
+目录方便我们查找相关的内容，我们把目录的格式放在这里就是为了使用我们上面讲到的标题来生成我们需要的目录，这样会更方便我们查找内容。当我们生成目录后，要在上面加上“目录”两个字，间距2个空格，黑体三号字。
+
+\subsection{3.4 数学表达式的格式}
+工科的毕业设计中数学表达式是不可缺少的，它的规范书写尤为重要。合理的数学可以使得设计文本更加美观，清楚。在这里我们数学表达式的书写采用数学公式编辑器，其格式如公式\eqref{eq:example}：
+\[
+E = mc^2 \label{eq:example}
+\]
+公式编号要右对齐，在编号和表达式间加入适当的空格，使得表达式居中。
+
+\subsection{3.5 图、表的格式}
+图要和文字空一行，且大小要适当，要有必要的文字说明，选择五号宋体加粗，图的引用如图\ref{fig:system}。
+\begin{comment}
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.8\textwidth]{system_schematic.png}
+  \caption{位置随动系统原理图}
+  \label{fig:system}
+\end{figure}
+\end{comment}
+当我们在设计中需要表格的时候要用到下面格式如表\ref{table:statistics}：
+\begin{table}[H]
+  \centering
+  \caption{08年深市435家公司的内部控制详细披露情况统计}
+  \begin{tabular}{|l|c|c|}
+    \hline
+    按照是否详细披露分类 & 数量（个） & 比重 \\
+    \hline
+    详细披露 & 268 & 61.61\% \\
+    \hline
+    简单披露 & 167 & 38.39\% \\
+    其中：满足2款要求的简单披露 & 98 & 22.53\% \\
+    满足1款要求的简单披露 & 33 & 7.58\% \\
+    满足0款要求的简单披露 & 36 & 8.28\% \\
+    \hline
+    合计 & 435 & 100\% \\
+    \hline
+  \end{tabular}
+  \label{table:statistics}
+\end{table}
+
+\subsection{3.6 参考文献的格式}
+参考文献的具体格式如下：
+\begin{thebibliography}{99}
+  \item 王化成. 高级财务管理学[M]. 北京: 中国人民大学出版社, 2003: 15-18
+  \item 巩亦平. 中小企业财务管理中存在的问题及对策[J]. 财会研究, 2005(3): 16-20
+\end{thebibliography}
+
+% 附录
+\section*{附 录}
+课程设计中的程序如下：
+\begin{verbatim}
+% 示例程序代码
+function result = calculate_efficiency(input_data)
+    % 计算效率的函数
+    result = sum(input_data) / length(input_data);
+end
+\end{verbatim}
+
+% 成绩评定表
+\section*{课程论文成绩评定表}
+院系：化学工程与能源技术学院 \quad 班级：2022级能源班 \quad 姓名：\underline{\makebox[4cm][s]{}} \quad 学号：\underline{\makebox[4cm][s]{}}
+
+\begin{tabular}{|l|l|c|l|l|l|l|l|c|}
+  \hline
+  项目 & 子项目 & 分值 & 优秀($x \geq 90\%$) & 良好($90\% > x \geq 80\%$) & 中等($80\% > x \geq 70\%$) & 及格($70\% > x \geq 60\%$) & 不及格($x < 60\%$) & 评分 \\
+  \hline
+  平时考核 & 平时考核 & 20 & 学习态度认真，科学作风严谨，严格保证设计时间并按任务书中规定的进度开展各项工作。 & 学习态度比较认真，科学作风良好，能按期圆满完成任务书规定的任务。 & 学习态度尚好，遵守组织纪律，基本保证设计时间，按期完成各项工作。 & 学习态度尚可，能遵守组织纪律，能按期完成任务。 & 学习马虎，纪律涣散，工作作风不严谨,不能保证设计时间和进度。 & \\
+  \hline
+  \multirow{2}{*}{课程论文报告} & 报告内容组织书写 & 40 & 结构严谨，逻辑性强，层次清晰，语言准确，文字流畅，完全符合规范化要求，书写工整或用计算机打印成文；图纸非常工整、清晰。 & 结构合理，符合逻辑，文章层次分明，语言准确，文字流畅，符合规范化要求，书写工整或用计算机打印成文；图纸工整、清晰。 & 结构合理，层次较为分明，文理通顺，基本达到规范化要求，书写比较工整；图纸比较工整、清晰。 & 结构基本合理，逻辑基本清楚，文字尚通顺，勉强达到规范化要求；图纸比较工整。 & 内容空泛，结构混乱，文字表达不清，错别字较多，达不到规范化要求；图纸不工整或不清晰。 & \\
+  \cline{2-9}
+  & 技术水平 & 40 & 设计合理、理论分析与计算正确，文献查阅能力强、引用合理、调查调研非常合理、可信。 & 设计合理、理论分析与计算正确，文献引用、调查调研比较合理、可信。 & 设计合理，理论分析与计算基本正确，主要文献引用、调查调研比较可信。 & 设计基本合理，理论分析与计算无大错。 & 设计不合理，理论分析与计算有原则错误，文献引用、调查调研有较大的问题。 & \\
+  \hline
+  \multicolumn{2}{|l|}{指导教师签名} & \multicolumn{7}{|l|}{\underline{\makebox[12cm][s]{}} 指导教师评定成绩：\underline{\makebox[4cm][s]{}}} \\
+  \hline
+\end{tabular}
+
+\end{document}

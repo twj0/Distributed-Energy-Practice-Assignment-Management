@@ -1,4 +1,4 @@
-This is XeTeX, Version 3.141592653-2.6-0.999997 (TeX Live 2025) (preloaded format=xelatex 2025.5.4)  23 MAY 2025 22:29
+This is XeTeX, Version 3.141592653-2.6-0.999997 (TeX Live 2025) (preloaded format=xelatex 2025.5.4)  6 JUN 2025 16:44
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -535,8 +535,7 @@ Package: longtable 2024-10-27 v4.22 Multi-page Table package (DPC)
 \c@LT@tables=\count358
 \c@LT@chunks=\count359
 \LT@p@ftn=\toks31
-)
-No file tmpl.aux.
+) (./tmpl.aux)
 \openout1 = `tmpl.aux'.
 
 LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 41.
@@ -616,6 +615,7 @@ LaTeX Font Info:    Overwriting math alphabet `\mathsf' in version `bold'
 (Font)                  OT1/cmss/bx/n --> TU/lmss/b/n on input line 41.
 LaTeX Font Info:    Overwriting math alphabet `\mathtt' in version `bold'
 (Font)                  OT1/cmtt/m/n --> TU/lmtt/b/n on input line 41.
+
 *geometry* driver: auto-detecting
 *geometry* detected driver: xetex
 *geometry* verbose mode - [ preamble ] result:
@@ -660,12 +660,9 @@ Package: ltcaption 2021/01/08 v1.4c longtable captions (AR)
 )
 Package caption Info: End \AtBeginDocument code.
 Package hyperref Info: Link coloring OFF on input line 41.
+ (./tmpl.out) (./tmpl.out)
 \@outlinefile=\write3
 \openout3 = `tmpl.out'.
-
-
-
-Package hyperref Warning: Rerun to get /PageLabels entry.
 
 \c@lstlisting=\count360
 
@@ -687,33 +684,26 @@ Overfull \hbox (24.0pt too wide) in paragraph at lines 90--91
 
 [1
 
-]
-No file tmpl.toc.
+] (./tmpl.toc
+
+[2])
 \tf@toc=\write4
 \openout4 = `tmpl.toc'.
 
 
 
-[2]
+LaTeX Font Info:    Font shape `TU/SimSun(0)/m/sl' in size <12> not available
+(Font)              Font shape `TU/SimSun(0)/m/it' tried instead on input line 114.
+[3]
 Overfull \hbox (15.45999pt too wide) in paragraph at lines 121--122
 \TU/lmr/m/n/12 www.cnki.net\TU/SimSun(0)/m/n/12 ；|  专 利 检 索：|  图 书 馆 网 站\TU/lmr/m/n/12 -\TU/SimSun(0)/m/n/12 资 源 导 航\TU/lmr/m/n/12 -\TU/SimSun(0)/m/n/12 专 利 标 准；|  英 文 检 索：| \TU/lmr/m/n/12 www.isiknowledge.com\TU/SimSun(0)/m/n/12 ，|
  []
 
 
 
-LaTeX Font Info:    Font shape `TU/SimSun(0)/m/sl' in size <12> not available
-(Font)              Font shape `TU/SimSun(0)/m/it' tried instead on input line 122.
-[3]
-
 [4]
 
-LaTeX Warning: Reference `eq:example' on page 5 undefined on input line 139.
-
-
 LaTeX Warning: Reference `fig:system' on page 5 undefined on input line 146.
-
-
-LaTeX Warning: Reference `table:statistics' on page 5 undefined on input line 155.
 
 
 
@@ -756,7 +746,9 @@ Overfull \hbox (2728.3603pt too wide) in paragraph at lines 198--211
 
 
 
-[6] (./tmpl.aux)
+[6]
+
+[7] (./tmpl.aux)
  ***********
 LaTeX2e <2024-11-01> patch level 2
 L3 programming layer <2022/08/05>
@@ -768,22 +760,16 @@ LaTeX Warning: There were undefined references.
 
 LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right.
 
-
-Package rerunfilecheck Warning: File `tmpl.out' has changed.
-(rerunfilecheck)                Rerun to get outlines right
-(rerunfilecheck)                or use package `bookmark'.
-
-Package rerunfilecheck Info: Checksums for `tmpl.out':
-(rerunfilecheck)             Before: <no file>
-(rerunfilecheck)             After:  C851A5942AA523865D0E2EC3F4314081;2018.
+Package rerunfilecheck Info: File `tmpl.out' has not changed.
+(rerunfilecheck)             Checksum: C851A5942AA523865D0E2EC3F4314081;2018.
  ) 
 Here is how much of TeX's memory you used:
- 18982 strings out of 470249
- 406209 string characters out of 5484267
- 812068 words of memory out of 5000000
- 45375 multiletter control sequences out of 15000+600000
+ 18998 strings out of 470249
+ 406395 string characters out of 5484267
+ 811173 words of memory out of 5000000
+ 45383 multiletter control sequences out of 15000+600000
  632509 words of font info for 89 fonts, out of 8000000 for 9000
  1348 hyphenation exceptions out of 8191
  93i,12n,111p,369b,483s stack positions out of 10000i,1000n,20000p,200000b,200000s
 
-Output written on tmpl.pdf (6 pages).
+Output written on tmpl.pdf (7 pages).

@@ -1,4 +1,0 @@
-\beamer@sectionintoc {1}{引言}{3}{0}{1}
-\beamer@sectionintoc {2}{新能源类型与优越性分析}{5}{0}{2}
-\beamer@sectionintoc {3}{新能源分布式应用案例研究}{9}{0}{3}
-\beamer@sectionintoc {4}{发展趋势与前景展望}{14}{0}{4}
